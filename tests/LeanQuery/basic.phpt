@@ -7,8 +7,6 @@ use Tester\Dumper;
 
 require_once __DIR__ . '/../bootstrap.php';
 
-function dump($result) {print_r($result);}
-
 $queryHelper = new QueryHelper($mapper);
 
 $sql = (string) $connection->select($queryHelper->formatSelect(Author::class) + $queryHelper->formatSelect(Book::class))
