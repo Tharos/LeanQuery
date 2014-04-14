@@ -5,4 +5,4 @@ php-win.ini
 RunTests.bat
 coverage.dat
 db/library.sq3
-LeanQueryLanguage/dev*.phpt
+LeanQuery/dev*.phpt
