@@ -1,5 +1,5 @@
 {
-	"name": "tharos/leanquerylanguage",
+	"name": "tharos/leanquery",
 	"homepage": "http://www.leanmapper.com",
 	"license": "MIT",
 	"authors": [
@@ -9,7 +9,7 @@
 	],
 	"autoload": {
 		"psr-0": {
-			"LeanQueryLanguage": ""
+			"LeanQuery": ""
 		}
 	},
 	"require": {

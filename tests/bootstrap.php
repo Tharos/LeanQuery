@@ -2,7 +2,6 @@
 
 use LeanMapper\Connection;
 use LeanMapper\DefaultEntityFactory;
-use LeanMapper\DefaultMapper;
 use Tester\Environment;
 
 if (@!include __DIR__ . '/../vendor/autoload.php') {
@@ -29,16 +28,14 @@ if (!copy(__DIR__ . '/db/library-ref.sq3', __DIR__ . '/db/library.sq3')) {
 	exit(1);
 }
 
-class TestMapper extends DefaultMapper
-{
-
-	protected $defaultEntityNamespace = null;
-
-}
+require_once(__DIR__ . '/model.php');
 
 $connection = new Connection(array(
 	'driver' => 'sqlite3',
 	'database' => __DIR__ . '/db/library.sq3',
 ));
-$mapper = new TestMapper;
+$connection->onEvent[] = function ($event) use (&$queries) {
+	$queries[] = $event->sql;
+};
+$mapper = new Mapper;
 $entityFactory = new DefaultEntityFactory;
