@@ -1,0 +1,21 @@
+{
+	"name": "tharos/leanquerylanguage",
+	"homepage": "http://www.leanmapper.com",
+	"license": "MIT",
+	"authors": [
+		{
+			"name": "Vojtěch Kohout"
+		}
+	],
+	"autoload": {
+		"psr-0": {
+			"LeanQueryLanguage": ""
+		}
+	},
+	"require": {
+		"tharos/leanmapper": "dev-develop"
+	},
+	"require-dev": {
+		"nette/tester": "dev-master"
+	}
+}
