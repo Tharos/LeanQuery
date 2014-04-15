@@ -47,3 +47,21 @@ $expected =
 		"WHERE [b_name] != 'The Pragmatic Programmer' AND LENGTH([b_name]) > 13";
 
 Assert::equal($expected, $sql);
+
+$sql = (string) $connection->select($queryHelper->formatSelect(Book::class) + $queryHelper->formatSelect(Author::class) + $queryHelper->formatSelect(Book::class, 'book2'))
+		->from($queryHelper->formatFrom(Book::class))
+		->join($queryHelper->formatJoin(Author::class))->on($queryHelper->formatOn(Book::class, 'author'))
+		->join($queryHelper->formatJoin(Book::class, 'book2'))->on($queryHelper->formatOn(Book::class, 'author', 'book2'));
+
+$expected =
+		"SELECT [book].[id] AS [book_id], [book].[author_id] AS [book_author_id], [book].[reviewer_id] AS [book_reviewer_id], " .
+		"[book].[name] AS [book_name], [book].[pubdate] AS [book_pubdate], [book].[description] AS [book_description], " .
+		"[book].[website] AS [book_website], [book].[available] AS [book_available], [author].[id] AS [author_id], " .
+		"[author].[name] AS [author_name], [author].[web] AS [author_web], [book2].[id] AS [book2_id], [book2].[author_id] AS [book2_author_id], " .
+		"[book2].[reviewer_id] AS [book2_reviewer_id], [book2].[name] AS [book2_name], [book2].[pubdate] AS [book2_pubdate], " .
+		"[book2].[description] AS [book2_description], [book2].[website] AS [book2_website], [book2].[available] AS [book2_available] " .
+		"FROM [book] AS [book] " .
+		"JOIN [author] ON [book].[author_id] = [author].[id] " .
+		"JOIN [book] [book2] ON [book2].[author_id] = [author].[id]";
+
+Assert::equal($expected, $sql);
