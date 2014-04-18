@@ -13,6 +13,8 @@ use LeanMapper\Relationship\HasOne;
 class QueryHelper
 {
 
+	const PREFIX_SEPARATOR = '_';
+
 	/** @var IMapper */
 	private $mapper;
 
@@ -43,7 +45,7 @@ class QueryHelper
 		$fields = array();
 		foreach ($this->getReflection($entityClass)->getEntityProperties() as $property) {
 			if (($column = $property->getColumn()) === null) continue;
-			$fields["$tableAlias.$column"] = $prefix . '_' . $column;
+			$fields["$tableAlias.$column"] = $prefix . self::PREFIX_SEPARATOR . $column;
 		}
 		return $fields;
 	}
@@ -116,7 +118,7 @@ class QueryHelper
 		if ($column === null) {
 			throw new InvalidArgumentException("Missing low-level column for property $property in entity $entityClass.");
 		}
-		return "[$prefix" . '_' . "$column]";
+		return "[$prefix" . self::PREFIX_SEPARATOR . "$column]";
 	}
 
 	////////////////////
