@@ -11,10 +11,11 @@ require_once __DIR__ . '/../bootstrap.php';
 $queryHelper = new QueryHelper($mapper);
 $hydrator = new Hydrator($connection, $mapper);
 
-$authorPrefix = 'author';
+$authorPrefix = 'autor';
+$authorTable = 'author';
 $bookPrefix = 'book';
 
-$data = $connection->select($queryHelper->formatSelect(Author::class, null, $authorPrefix) + $queryHelper->formatSelect(Book::class, null, $bookPrefix))
+$data = $connection->select($queryHelper->formatSelect(Author::class, $authorTable, $authorPrefix) + $queryHelper->formatSelect(Book::class, null, $bookPrefix))
 		->from($queryHelper->formatFrom(Author::class))
 		->join($queryHelper->formatJoin(Book::class))->on($queryHelper->formatOn(Book::class, 'author'))
 		->where('%sql != %s', $queryHelper->formatColumn(Book::class, 'name', null, $bookPrefix), 'The Pragmatic Programmer')
@@ -22,7 +23,7 @@ $data = $connection->select($queryHelper->formatSelect(Author::class, null, $aut
 		->fetchAll();
 
 $tablesByPrefixes = array(
-	'author' => 'author',
+	'autor' => 'author',
 	'book' => 'book',
 );
 $primaryKeysByTables = array(
@@ -30,11 +31,11 @@ $primaryKeysByTables = array(
 	'book' => 'id',
 );
 $relationships = array(
-	'book(book).author_id <=> author(author).id',
+	'book(book).author_id <=> autor(author).id',
 );
 $results = $hydrator->buildResultsGraph($data, $tablesByPrefixes, $primaryKeysByTables, $relationships);
 
-$authors = $results['author'];
+$authors = $results['autor'];
 $output = '';
 
 foreach ($authors as $author) {
@@ -53,7 +54,7 @@ foreach ($authors as $author) {
 Assert::count(1, $queries);
 
 $expected =
-		"SELECT [author].[id] AS [author_id], [author].[name] AS [author_name], [author].[web] AS [author_web], " .
+		"SELECT [author].[id] AS [autor_id], [author].[name] AS [autor_name], [author].[web] AS [autor_web], " .
 		"[book].[id] AS [book_id], [book].[author_id] AS [book_author_id], [book].[reviewer_id] AS [book_reviewer_id], [book].[name] AS [book_name], " .
 		"[book].[pubdate] AS [book_pubdate], [book].[description] AS [book_description], [book].[website] AS [book_website], [book].[available] AS [book_available] " .
 		"FROM [author] AS [author] " .
