@@ -104,7 +104,6 @@ class Hydrator
 				$results[$relationship['targetPrefix']]->setReferencingResult($results[$relationship['sourcePrefix']], $relationship['sourceTable'], $relationship['relationshipColumn']);
 			}
 		}
-
 		return $results;
 	}
 
