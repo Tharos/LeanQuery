@@ -20,7 +20,7 @@ class Hydrator
 
 	const DIRECTION_BOTH = '<=>';
 
-	const RE_IDENTIFIER = '[a-zA-Z0-9_-]+';
+	const RE_IDENTIFIER = '[a-zA-Z0-9_-]+'; // TODO: move to separate class in Lean Mapper
 
 	/** @var Connection */
 	private $connection;
