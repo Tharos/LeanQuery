@@ -78,8 +78,8 @@ class DomainQuery
 		$this->mapper = $mapper;
 		$this->hydrator = $hydrator;
 		$this->queryHelper = $queryHelper;
-		$this->aliases = new Aliases;
 
+		$this->aliases = new Aliases;
 		$this->hydratorMeta = new HydratorMeta;
 	}
 
@@ -265,7 +265,7 @@ class DomainQuery
 
 			$this->hydratorMeta->addTablePrefix($alias, $targetTable);
 			$this->hydratorMeta->addPrimaryKey($targetTable, $primaryKey);
-			$this->hydratorMeta->addRelationship($alias, "$fromAlias(" . $this->mapper->getTable($fromEntity) . ").$relationshipColumn => $alias($targetTable).$primaryKey");
+			$this->hydratorMeta->addRelationship($alias, "$fromAlias(" . $this->mapper->getTable($fromEntity) . ").$relationshipColumn " . Hydrator::DIRECTION_REFERENCED . " $alias($targetTable).$primaryKey");
 
 		} elseif ($relationship instanceof HasMany) {
 			$this->clauses['join'][] = array(
@@ -285,7 +285,7 @@ class DomainQuery
 			);
 			$this->hydratorMeta->addTablePrefix($relTableAlias, $relationshipTable);
 			$this->hydratorMeta->addPrimaryKey($relationshipTable, $relTablePrimaryKey = $this->mapper->getPrimaryKey($relationshipTable));
-			$this->hydratorMeta->addRelationship($relTableAlias, "$relTableAlias($relationshipTable).$columnReferencingSourceTable <= $fromAlias($fromTable).$primaryKey");
+			$this->hydratorMeta->addRelationship($relTableAlias, "$relTableAlias($relationshipTable).$columnReferencingSourceTable " . Hydrator::DIRECTION_REFERENCING . " $fromAlias($fromTable).$primaryKey");
 
 			$this->clauses['join'][] = array(
 				'type' => self::JOIN_TYPE_LEFT,
@@ -304,7 +304,7 @@ class DomainQuery
 
 			$this->hydratorMeta->addTablePrefix($alias, $targetTable);
 			$this->hydratorMeta->addPrimaryKey($targetTable, $primaryKey);
-			$this->hydratorMeta->addRelationship($alias, "$relTableAlias($relationshipTable).$columnReferencingTargetTable => $alias($targetTable).$primaryKey");
+			$this->hydratorMeta->addRelationship($alias, "$relTableAlias($relationshipTable).$columnReferencingTargetTable " . Hydrator::DIRECTION_REFERENCED . " $alias($targetTable).$primaryKey");
 
 			$this->relationshipTables[$alias] = array(
 				$relTableAlias, $relTablePrimaryKey, $relTableAlias . QueryHelper::PREFIX_SEPARATOR . $relTablePrimaryKey,
