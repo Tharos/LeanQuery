@@ -52,12 +52,8 @@ class DomainQuery
 		'where' => array(),
 	);
 
-	/** @var array */
-	private $hydratorMeta = array(
-		'tablesByPrefixes' => array(),
-		'primaryKeysByTables' => array(),
-		'relationships' => array(),
-	);
+	/** @var HydratorMeta */
+	private $hydratorMeta;
 
 	/** @var EntityReflection[] */
 	private $reflections = array();
@@ -78,6 +74,8 @@ class DomainQuery
 		$this->hydrator = $hydrator;
 		$this->queryHelper = $queryHelper;
 		$this->aliases = new Aliases;
+
+		$this->hydratorMeta = new HydratorMeta;
 	}
 
 	/**
@@ -110,8 +108,9 @@ class DomainQuery
 
 		$this->aliases->addAlias($alias, $entityClass);
 		$this->clauses['from'] = array($entityClass, $table, $alias);
-		$this->hydratorMeta['tablesByPrefixes'][$alias] = $table;
-		$this->hydratorMeta['primaryKeysByTables'][$table] = $this->mapper->getPrimaryKey($table);
+
+		$this->hydratorMeta->addTablePrefix($alias, $table);
+		$this->hydratorMeta->addPrimaryKey($table, $this->mapper->getPrimaryKey($table));
 
 		return $this;
 	}
@@ -178,18 +177,10 @@ class DomainQuery
 	 */
 	public function getEntities()
 	{
-		$relationships = array();
-		foreach (array_keys($this->clauses['select']) as $alias) {
-			if (array_key_exists($alias, $this->hydratorMeta['relationships'])) {
-				$relationships[] = $this->hydratorMeta['relationships'][$alias];
-			}
-		}
-
 		$results = $this->hydrator->buildResultsGraph(
 			$this->createFluent()->fetchAll(),
-			$this->hydratorMeta['tablesByPrefixes'],
-			$this->hydratorMeta['primaryKeysByTables'],
-			$relationships
+			$this->hydratorMeta,
+			array_keys($this->clauses['select'])
 		);
 
 		$entities = array();
@@ -260,9 +251,10 @@ class DomainQuery
 			throw new InvalidArgumentException; // TODO: implement another relationships
 		}
 		$this->aliases->addAlias($alias, $property->getType());
-		$this->hydratorMeta['tablesByPrefixes'][$alias] = $targetTable;
-		$this->hydratorMeta['primaryKeysByTables'][$targetTable] = $primaryKey;
-		$this->hydratorMeta['relationships'][$alias] = "$fromAlias(" . $this->mapper->getTable($fromEntity) . ").$relationshipColumn => $alias($targetTable).$primaryKey";
+
+		$this->hydratorMeta->addTablePrefix($alias, $targetTable);
+		$this->hydratorMeta->addPrimaryKey($targetTable, $primaryKey);
+		$this->hydratorMeta->addRelationship($alias, "$fromAlias(" . $this->mapper->getTable($fromEntity) . ").$relationshipColumn => $alias($targetTable).$primaryKey");
 	}
 
 	/**
