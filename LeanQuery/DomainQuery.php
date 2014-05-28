@@ -288,7 +288,7 @@ class DomainQuery
 			$this->hydratorMeta->addRelationship($relTableAlias, "$relTableAlias($relationshipTable).$columnReferencingSourceTable " . Hydrator::DIRECTION_REFERENCING . " $fromAlias($fromTable).$primaryKey");
 
 			$this->clauses['join'][] = array(
-				'type' => self::JOIN_TYPE_LEFT,
+				'type' => $type,
 				'joinParameters' => array(
 					$targetTable = $relationship->getTargetTable(),
 					$alias,
