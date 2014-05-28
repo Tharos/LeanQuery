@@ -41,19 +41,18 @@ class Hydrator
 
 	/**
 	 * @param DibiRow[] $data
-	 * @param array $tablesByPrefixes
-	 * @param array $primaryKeysByTables
-	 * @param array $relationships
+	 * @param HydratorMeta $hydratorMeta
+	 * @param array|null $relationshipsFilter
 	 * @return array
 	 */
-	public function buildResultsGraph(array $data, array $tablesByPrefixes, array $primaryKeysByTables, array $relationships = array())
+	public function buildResultsGraph(array $data, HydratorMeta $hydratorMeta, array $relationshipsFilter = null)
 	{
-		$results = array_fill_keys(array_keys($tablesByPrefixes), array());
+		$results = array_fill_keys(array_keys($hydratorMeta->getTablesByPrefixes()), array());
 
 		foreach ($data as $row) {
 			$currentPrimaryKeys = array();
-			foreach ($tablesByPrefixes as $prefix => $table) {
-				$alias = $prefix . QueryHelper::PREFIX_SEPARATOR . $primaryKeysByTables[$table];
+			foreach ($hydratorMeta->getTablesByPrefixes() as $prefix => $table) {
+				$alias = $prefix . QueryHelper::PREFIX_SEPARATOR . $hydratorMeta->getPrimaryKeyByTable($table);
 				if (isset($row[$alias])) {
 					$currentPrimaryKeys[$prefix] = $row[$alias];
 				}
@@ -74,8 +73,9 @@ class Hydrator
 			}
 		}
 		foreach ($results as $prefix => $rows) {
-			$results[$prefix] = Result::createInstance($rows, $tablesByPrefixes[$prefix], $this->connection, $this->mapper);
+			$results[$prefix] = Result::createInstance($rows, $hydratorMeta->getTableByPrefix($prefix), $this->connection, $this->mapper);
 		}
+		$relationships = $hydratorMeta->getRelationships($relationshipsFilter);
 		if (!empty($relationships)) {
 			$this->linkResults($results, $relationships);
 		}
