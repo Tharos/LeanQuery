@@ -3,13 +3,16 @@
 namespace LeanQuery;
 
 use LeanMapper\Connection;
+use LeanMapper\Entity;
 use LeanMapper\Exception\InvalidArgumentException;
 use LeanMapper\Exception\InvalidMethodCallException;
 use LeanMapper\Exception\InvalidStateException;
+use LeanMapper\Fluent;
 use LeanMapper\IEntityFactory;
 use LeanMapper\IMapper;
 use LeanMapper\Reflection\EntityReflection;
 use LeanMapper\Relationship\HasOne;
+use LeanMapper\Row;
 
 /**
  * @author Vojtěch Kohout
@@ -47,6 +50,13 @@ class DomainQuery
 		'from' => null,
 		'join' => array(),
 		'where' => array(),
+	);
+
+	/** @var array */
+	private $hydratorMeta = array(
+		'tablesByPrefixes' => array(),
+		'primaryKeysByTables' => array(),
+		'relationships' => array(),
 	);
 
 	/** @var EntityReflection[] */
@@ -96,10 +106,12 @@ class DomainQuery
 		if ($this->clauses['from'] !== null) {
 			throw new InvalidMethodCallException;
 		}
+		$table = $this->mapper->getTable($entityClass);
+
 		$this->aliases->addAlias($alias, $entityClass);
-		$this->clauses['from'] = array(
-			$this->mapper->getTable($entityClass) => $alias
-		);
+		$this->clauses['from'] = array($entityClass, $table, $alias);
+		$this->hydratorMeta['tablesByPrefixes'][$alias] = $table;
+		$this->hydratorMeta['primaryKeysByTables'][$table] = $this->mapper->getPrimaryKey($table);
 
 		return $this;
 	}
@@ -128,6 +140,10 @@ class DomainQuery
 		return $this;
 	}
 
+	/**
+	 * @return Fluent
+	 * @throws InvalidStateException
+	 */
 	public function createFluent()
 	{
 		if ($this->clauses['from'] === null or empty($this->clauses['select'])) {
@@ -142,7 +158,7 @@ class DomainQuery
 				)
 			);
 		}
-		$statement->from($this->clauses['from']);
+		$statement->from(array($this->clauses['from'][1] => $this->clauses['from'][2]));
 		foreach ($this->clauses['join'] as $join) {
 			call_user_func_array(
 				array($statement, $join['type']),
@@ -155,6 +171,35 @@ class DomainQuery
 		}
 
 		return $statement;
+	}
+
+	/**
+	 * @return Entity[]
+	 */
+	public function getEntities()
+	{
+		$relationships = array();
+		foreach (array_keys($this->clauses['select']) as $alias) {
+			if (array_key_exists($alias, $this->hydratorMeta['relationships'])) {
+				$relationships[] = $this->hydratorMeta['relationships'][$alias];
+			}
+		}
+
+		$results = $this->hydrator->buildResultsGraph(
+			$this->createFluent()->fetchAll(),
+			$this->hydratorMeta['tablesByPrefixes'],
+			$this->hydratorMeta['primaryKeysByTables'],
+			$relationships
+		);
+
+		$entities = array();
+		$entityClass = $this->clauses['from'][0];
+		foreach ($results[$this->clauses['from'][2]] as $key => $row) {
+			$entities[] = $entity = $this->enityFactory->createEntity($entityClass, new Row($results[$this->clauses['from'][2]], $key));
+			$entity->makeAlive($this->enityFactory, $this->connection, $this->mapper);
+		}
+
+		return $this->enityFactory->createCollection($entities);
 	}
 
 	////////////////////
@@ -194,6 +239,9 @@ class DomainQuery
 			throw new InvalidArgumentException;
 		}
 		$relationship = $property->getRelationship();
+		if ($fromAlias === null) {
+			$fromAlias = $this->aliases->getAlias($fromEntity);
+		}
 		if ($relationship instanceof HasOne) {
 			$this->clauses['join'][] = array(
 				'type' => $type,
@@ -202,14 +250,19 @@ class DomainQuery
 					$alias,
 				),
 				'onParameters' => array(
-					$fromAlias !== null ? $fromAlias : $this->aliases->getAlias($fromEntity),
-					$relationship->getColumnReferencingTargetTable(),
+					$fromAlias,
+					$relationshipColumn = $relationship->getColumnReferencingTargetTable(),
 					$alias,
-					$this->mapper->getPrimaryKey($targetTable),
+					$primaryKey = $this->mapper->getPrimaryKey($targetTable),
 				),
 			);
+		} else {
+			throw new InvalidArgumentException; // TODO: implement another relationships
 		}
 		$this->aliases->addAlias($alias, $property->getType());
+		$this->hydratorMeta['tablesByPrefixes'][$alias] = $targetTable;
+		$this->hydratorMeta['primaryKeysByTables'][$targetTable] = $primaryKey;
+		$this->hydratorMeta['relationships'][$alias] = "$fromAlias(" . $this->mapper->getTable($fromEntity) . ").$relationshipColumn => $alias($targetTable).$primaryKey";
 	}
 
 	/**
