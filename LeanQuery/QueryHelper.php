@@ -12,7 +12,7 @@ use LeanMapper\Reflection\Property;
 class QueryHelper
 {
 
-	const PREFIX_SEPARATOR = '_';
+	const PREFIX_SEPARATOR = '__';
 
 
 	/**

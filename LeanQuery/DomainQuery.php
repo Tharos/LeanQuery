@@ -11,6 +11,7 @@ use LeanMapper\Fluent;
 use LeanMapper\IEntityFactory;
 use LeanMapper\IMapper;
 use LeanMapper\Reflection\EntityReflection;
+use LeanMapper\Relationship\HasMany;
 use LeanMapper\Relationship\HasOne;
 use LeanMapper\Row;
 
@@ -57,6 +58,10 @@ class DomainQuery
 
 	/** @var EntityReflection[] */
 	private $reflections = array();
+
+	private $indexer = 1;
+
+	private $relationshipTables = array();
 
 
 	/**
@@ -156,6 +161,12 @@ class DomainQuery
 					$alias
 				)
 			);
+			if (array_key_exists($alias, $this->relationshipTables)) {
+				call_user_func_array(
+					array($statement, 'select'),
+					array_merge(array('%n.%n AS %n, %n.%n AS %n, %n.%n AS %n'), $this->relationshipTables[$alias])
+				);
+			}
 		}
 		$statement->from(array($this->clauses['from'][1] => $this->clauses['from'][2]));
 		foreach ($this->clauses['join'] as $join) {
@@ -177,11 +188,14 @@ class DomainQuery
 	 */
 	public function getEntities()
 	{
-		$results = $this->hydrator->buildResultsGraph(
-			$this->createFluent()->fetchAll(),
-			$this->hydratorMeta,
-			array_keys($this->clauses['select'])
-		);
+		$relationshipFilter = array_keys($this->clauses['select']);
+		foreach ($relationshipFilter as $alias) {
+			if (array_key_exists($alias, $this->relationshipTables)) {
+				$relationshipFilter[] = $this->relationshipTables[$alias][0];
+			}
+		}
+
+		$results = $this->hydrator->buildResultsGraph($this->createFluent()->fetchAll(), $this->hydratorMeta, $relationshipFilter);
 
 		$entities = array();
 		$entityClass = $this->clauses['from'][0];
@@ -247,14 +261,61 @@ class DomainQuery
 					$primaryKey = $this->mapper->getPrimaryKey($targetTable),
 				),
 			);
-		} else {
-			throw new InvalidArgumentException; // TODO: implement another relationships
-		}
-		$this->aliases->addAlias($alias, $property->getType());
+			$this->aliases->addAlias($alias, $property->getType());
 
-		$this->hydratorMeta->addTablePrefix($alias, $targetTable);
-		$this->hydratorMeta->addPrimaryKey($targetTable, $primaryKey);
-		$this->hydratorMeta->addRelationship($alias, "$fromAlias(" . $this->mapper->getTable($fromEntity) . ").$relationshipColumn => $alias($targetTable).$primaryKey");
+			$this->hydratorMeta->addTablePrefix($alias, $targetTable);
+			$this->hydratorMeta->addPrimaryKey($targetTable, $primaryKey);
+			$this->hydratorMeta->addRelationship($alias, "$fromAlias(" . $this->mapper->getTable($fromEntity) . ").$relationshipColumn => $alias($targetTable).$primaryKey");
+
+		} elseif ($relationship instanceof HasMany) {
+			$this->clauses['join'][] = array(
+				'type' => $type,
+				'joinParameters' => array(
+					$relationshipTable = $relationship->getRelationshipTable(),
+					$relTableAlias = $relationshipTable . $this->indexer,
+				),
+				'onParameters' => array(
+					$fromAlias,
+					$primaryKey = $this->mapper->getPrimaryKey(
+						$fromTable = $this->mapper->getTable($fromEntity)
+					),
+					$relTableAlias,
+					$columnReferencingSourceTable = $relationship->getColumnReferencingSourceTable(),
+				),
+			);
+			$this->hydratorMeta->addTablePrefix($relTableAlias, $relationshipTable);
+			$this->hydratorMeta->addPrimaryKey($relationshipTable, $relTablePrimaryKey = $this->mapper->getPrimaryKey($relationshipTable));
+			$this->hydratorMeta->addRelationship($relTableAlias, "$relTableAlias($relationshipTable).$columnReferencingSourceTable <= $fromAlias($fromTable).$primaryKey");
+
+			$this->clauses['join'][] = array(
+				'type' => self::JOIN_TYPE_LEFT,
+				'joinParameters' => array(
+					$targetTable = $relationship->getTargetTable(),
+					$alias,
+				),
+				'onParameters' => array(
+					$relTableAlias,
+					$columnReferencingTargetTable = $relationship->getColumnReferencingTargetTable(),
+					$alias,
+					$primaryKey = $this->mapper->getPrimaryKey($targetTable),
+				),
+			);
+			$this->aliases->addAlias($alias, $property->getType());
+
+			$this->hydratorMeta->addTablePrefix($alias, $targetTable);
+			$this->hydratorMeta->addPrimaryKey($targetTable, $primaryKey);
+			$this->hydratorMeta->addRelationship($alias, "$relTableAlias($relationshipTable).$columnReferencingTargetTable => $alias($targetTable).$primaryKey");
+
+			$this->relationshipTables[$alias] = array(
+				$relTableAlias, $relTablePrimaryKey, $relTableAlias . QueryHelper::PREFIX_SEPARATOR . $relTablePrimaryKey,
+				$relTableAlias, $columnReferencingSourceTable, $relTableAlias . QueryHelper::PREFIX_SEPARATOR . $columnReferencingSourceTable,
+				$relTableAlias, $columnReferencingTargetTable, $relTableAlias . QueryHelper::PREFIX_SEPARATOR . $columnReferencingTargetTable
+			);
+
+			$this->indexer++;
+		} else {
+			throw new InvalidArgumentException;
+		}
 	}
 
 	/**
