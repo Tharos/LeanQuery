@@ -27,7 +27,11 @@ class DomainQuery
 
 	const JOIN_TYPE_LEFT = 'leftJoin';
 
-	/** @var IEntityFactory */
+    const ORDER_ASC = 'ASC';
+
+    const ORDER_DESC = 'DESC';
+
+    /** @var IEntityFactory */
 	private $enityFactory;
 
 	/** @var Connection */
@@ -123,26 +127,29 @@ class DomainQuery
 	/**
 	 * @param string $definition
 	 * @param string $alias
-	 * @param string|null $fromAlias
 	 * @return self
 	 */
-	public function join($definition, $alias, $fromAlias = null)
+	public function join($definition, $alias)
 	{
-		$this->joinByType($definition, $alias, self::JOIN_TYPE_INNER, $fromAlias);
+		$this->joinByType($definition, $alias, self::JOIN_TYPE_INNER);
 		return $this;
 	}
 
 	/**
 	 * @param string $definition
 	 * @param string $alias
-	 * @param string|null $fromAlias
 	 * @return self
 	 */
-	public function leftJoin($definition, $alias, $fromAlias = null)
+	public function leftJoin($definition, $alias)
 	{
-		$this->joinByType($definition, $alias, self::JOIN_TYPE_LEFT, $fromAlias);
+		$this->joinByType($definition, $alias, self::JOIN_TYPE_LEFT);
 		return $this;
 	}
+
+    public function orderBy($property, $direction = self::ORDER_ASC)
+    {
+        list($alias, $property) = $this->parseDotNotation($property);
+    }
 
 	/**
 	 * @return Fluent
@@ -230,23 +237,20 @@ class DomainQuery
 	 * @param string $definition
 	 * @param string $alias
 	 * @param string $type
-	 * @param string|null $fromAlias
 	 * @throws InvalidArgumentException
 	 */
-	private function joinByType($definition, $alias, $type, $fromAlias)
+	private function joinByType($definition, $alias, $type)
 	{
-		$parsedJoin = $this->parseJoin($definition);
+		list($fromAlias, $viaProperty) = $this->parseDotNotation($definition);
 		$entityReflection = $this->getReflection(
-			$fromEntity = $this->aliases->getEntityClass($parsedJoin[0])
+			$fromEntity = $this->aliases->getEntityClass($fromAlias)
 		);
-		$property = $entityReflection->getEntityProperty($parsedJoin[1]);
+		$property = $entityReflection->getEntityProperty($viaProperty);
 		if (!$property->hasRelationship()) {
 			throw new InvalidArgumentException;
 		}
 		$relationship = $property->getRelationship();
-		if ($fromAlias === null) {
-			$fromAlias = $this->aliases->getAlias($fromEntity);
-		}
+
 		if ($relationship instanceof HasOne) {
 			$this->clauses['join'][] = array(
 				'type' => $type,
@@ -323,7 +327,7 @@ class DomainQuery
 	 * @return array
 	 * @throws InvalidArgumentException
 	 */
-	private function parseJoin($definition)
+	private function parseDotNotation($definition)
 	{
 		$matches = array();
 		if (!preg_match('#^\s*(' . DomainQuery::PATTERN_IDENTIFIER . ')\.(' . DomainQuery::PATTERN_IDENTIFIER . ')\s*$#', $definition, $matches)) {
