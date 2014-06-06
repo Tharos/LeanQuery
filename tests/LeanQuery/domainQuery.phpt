@@ -84,6 +84,8 @@ $domainQuery->select('b, a')
 		->join('b.author', 'a')
 		->join('b.tags', 't');
 
+$domainQuery->getEntities();
+$domainQuery->getEntities(); // testing cache
 $books = $domainQuery->getEntities();
 
 $output = '';

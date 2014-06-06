@@ -14,6 +14,7 @@ use LeanMapper\Reflection\EntityReflection;
 use LeanMapper\Relationship\BelongsTo;
 use LeanMapper\Relationship\HasMany;
 use LeanMapper\Relationship\HasOne;
+use LeanMapper\Result;
 use LeanMapper\Row;
 
 /**
@@ -33,7 +34,7 @@ class DomainQuery
     const ORDER_DESC = 'DESC';
 
     /** @var IEntityFactory */
-	private $enityFactory;
+	private $entityFactory;
 
 	/** @var Connection */
 	private $connection;
@@ -65,21 +66,29 @@ class DomainQuery
 	/** @var EntityReflection[] */
 	private $reflections = array();
 
+	/** @var int */
 	private $indexer = 1;
 
+	/** @var array */
 	private $relationshipTables = array();
+
+	/** @var array */
+	private $results;
+
+	/** @var Entity[] */
+	private $entities;
 
 
 	/**
-	 * @param IEntityFactory $enityFactory
+	 * @param IEntityFactory $entityFactory
 	 * @param Connection $connection
 	 * @param IMapper $mapper
 	 * @param Hydrator $hydrator
 	 * @param QueryHelper $queryHelper
 	 */
-	public function __construct(IEntityFactory $enityFactory, Connection $connection, IMapper $mapper, Hydrator $hydrator, QueryHelper $queryHelper)
+	public function __construct(IEntityFactory $entityFactory, Connection $connection, IMapper $mapper, Hydrator $hydrator, QueryHelper $queryHelper)
 	{
-		$this->enityFactory = $enityFactory;
+		$this->entityFactory = $entityFactory;
 		$this->connection = $connection;
 		$this->mapper = $mapper;
 		$this->hydrator = $hydrator;
@@ -96,6 +105,8 @@ class DomainQuery
 	 */
 	public function select($aliases)
 	{
+		$this->cleanCache();
+
 		if (!preg_match('#^\s*(' . self::PATTERN_IDENTIFIER . '\s*,\s*)*(' . self::PATTERN_IDENTIFIER . ')\s*$#', $aliases)) {
 			throw new InvalidArgumentException;
 		}
@@ -112,6 +123,8 @@ class DomainQuery
 	 */
 	public function from($entityClass, $alias)
 	{
+		$this->cleanCache();
+
 		if ($this->clauses['from'] !== null) {
 			throw new InvalidMethodCallException;
 		}
@@ -133,6 +146,8 @@ class DomainQuery
 	 */
 	public function join($definition, $alias)
 	{
+		$this->cleanCache();
+
 		$this->joinByType($definition, $alias, self::JOIN_TYPE_INNER);
 		return $this;
 	}
@@ -144,6 +159,8 @@ class DomainQuery
 	 */
 	public function leftJoin($definition, $alias)
 	{
+		$this->cleanCache();
+
 		$this->joinByType($definition, $alias, self::JOIN_TYPE_LEFT);
 		return $this;
 	}
@@ -156,6 +173,8 @@ class DomainQuery
 	 */
 	public function orderBy($property, $direction = self::ORDER_ASC)
     {
+	    $this->cleanCache();
+
         list($alias, $property) = $this->parseDotNotation($property);
 	    $entityReflection = $this->getReflection(
 		    $this->aliases->getEntityClass($alias)
@@ -220,31 +239,52 @@ class DomainQuery
 	}
 
 	/**
+	 * @param string $alias
+	 * @throws InvalidArgumentException
+	 * @return Result
+	 */
+	public function getResult($alias)
+	{
+		if ($this->results === NULL) {
+			$relationshipFilter = array_keys($this->clauses['select']);
+			foreach ($relationshipFilter as $filteredAlias) {
+				if (array_key_exists($filteredAlias, $this->relationshipTables)) {
+					$relationshipFilter[] = $this->relationshipTables[$filteredAlias][0];
+				}
+			}
+			$this->results = $this->hydrator->buildResultsGraph($this->createFluent()->fetchAll(), $this->hydratorMeta, $relationshipFilter);
+		}
+		if (!array_key_exists($alias, $this->results)) {
+			throw new InvalidArgumentException;
+		}
+		return $this->results[$alias];
+	}
+
+	/**
 	 * @return Entity[]
 	 */
 	public function getEntities()
 	{
-		$relationshipFilter = array_keys($this->clauses['select']);
-		foreach ($relationshipFilter as $alias) {
-			if (array_key_exists($alias, $this->relationshipTables)) {
-				$relationshipFilter[] = $this->relationshipTables[$alias][0];
+		if ($this->entities === NULL) {
+			$entities = array();
+			$entityClass = $this->clauses['from'][0];
+			$result = $this->getResult($this->clauses['from'][2]);
+			foreach ($result as $key => $row) {
+				$entities[] = $entity = $this->entityFactory->createEntity($entityClass, new Row($result, $key));
+				$entity->makeAlive($this->entityFactory, $this->connection, $this->mapper);
 			}
+			$this->entities = $this->entityFactory->createCollection($entities);
 		}
-
-		$results = $this->hydrator->buildResultsGraph($this->createFluent()->fetchAll(), $this->hydratorMeta, $relationshipFilter);
-
-		$entities = array();
-		$entityClass = $this->clauses['from'][0];
-		foreach ($results[$this->clauses['from'][2]] as $key => $row) {
-			$entities[] = $entity = $this->enityFactory->createEntity($entityClass, new Row($results[$this->clauses['from'][2]], $key));
-			$entity->makeAlive($this->enityFactory, $this->connection, $this->mapper);
-		}
-
-		return $this->enityFactory->createCollection($entities);
+		return $this->entities;
 	}
 
 	////////////////////
 	////////////////////
+
+	private function cleanCache()
+	{
+		$this->results = $this->entities = NULL;
+	}
 
 	/**
 	 * @param string $entityClass
