@@ -29,11 +29,11 @@ class DomainQuery
 
 	const JOIN_TYPE_LEFT = 'leftJoin';
 
-    const ORDER_ASC = 'ASC';
+	const ORDER_ASC = 'ASC';
 
-    const ORDER_DESC = 'DESC';
+	const ORDER_DESC = 'DESC';
 
-    /** @var IEntityFactory */
+	/** @var IEntityFactory */
 	private $entityFactory;
 
 	/** @var Connection */
