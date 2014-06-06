@@ -17,7 +17,7 @@ $domainQueryFactory = new DomainQueryFactory($entityFactory, $connection, $mappe
 $domainQuery = $domainQueryFactory->createQuery();
 
 $domainQuery->select('b')
-		->from(Book::class, 'b')
+		->from('Book', 'b')
 		->join('b.author', 'a')->select('a')
 		->leftJoin('b.tags', 't')->select('t');
 
@@ -75,12 +75,12 @@ Assert::equal($expected, $output);
 
 ////////////////////
 
-$queries = [];
+$queries = array();
 
 $domainQuery = $domainQueryFactory->createQuery();
 
 $domainQuery->select('b, a')
-		->from(Book::class, 'b')
+		->from('Book', 'b')
 		->join('b.author', 'a')
 		->join('b.tags', 't');
 
@@ -121,11 +121,11 @@ Assert::equal($expected, $output);
 
 ////////////////////
 
-$queries = [];
+$queries = array();
 
 $domainQuery = $domainQueryFactory->createQuery();
 
-$domainQuery->from(Book::class, 'b')->select('b')
+$domainQuery->from('Book', 'b')->select('b')
 		->join('b.author', 'a')
 		->join('b.tags', 't');
 
@@ -180,12 +180,12 @@ Assert::equal($expected, $output);
 
 ////////////////////
 
-$queries = [];
+$queries = array();
 
 $domainQuery = $domainQueryFactory->createQuery();
 
 $domainQuery->select('b')
-	->from(Book::class, 'b')
+	->from('Book', 'b')
 	->join('b.author', 'a')->select('a')
 	->leftJoin('b.tags', 't')->select('t')
 	->orderBy('a.name')

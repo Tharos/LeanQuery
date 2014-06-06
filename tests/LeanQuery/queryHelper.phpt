@@ -10,10 +10,10 @@ require_once __DIR__ . '/../bootstrap.php';
 $queryHelper = new QueryHelper($mapper);
 
 $authorReflection = Author::getReflection($mapper);
-$authorTable = $mapper->getTable(Author::class);
+$authorTable = $mapper->getTable('Author');
 
 $bookReflection = Book::getReflection($mapper);
-$bookTable = $mapper->getTable(Book::class);
+$bookTable = $mapper->getTable('Book');
 
 $bookAlias = 'knizka';
 $authorAlias = 'spisovatel';
@@ -61,7 +61,7 @@ Assert::equal($expected, $sql);
 //////////
 
 $sql = (string) $connection->select($queryHelper->formatSelect($authorReflection, $authorAlias, $authorPrefix) + $queryHelper->formatSelect($bookReflection, $bookAlias, $bookPrefix))
-		->from([$authorTable => $authorAlias])
+		->from(array($authorTable => $authorAlias))
 		->join('%n %n', $bookTable, $bookAlias)->on('%n.%n = %n.%n', $bookAlias, $bookReflection->getEntityProperty('author')->getColumn(), $authorAlias, $authorReflection->getEntityProperty('id')->getColumn())
 		->where('%n != %s', $queryHelper->formatColumn($bookReflection->getEntityProperty('name'), $bookTable, $bookPrefix), 'The Pragmatic Programmer')
 		->where('LENGTH(%n) > %i', $queryHelper->formatColumn($bookReflection->getEntityProperty('name'), $bookTable, $bookPrefix), 13);
