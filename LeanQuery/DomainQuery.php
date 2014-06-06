@@ -11,6 +11,7 @@ use LeanMapper\Fluent;
 use LeanMapper\IEntityFactory;
 use LeanMapper\IMapper;
 use LeanMapper\Reflection\EntityReflection;
+use LeanMapper\Relationship\BelongsTo;
 use LeanMapper\Relationship\HasMany;
 use LeanMapper\Relationship\HasOne;
 use LeanMapper\Row;
@@ -27,7 +28,11 @@ class DomainQuery
 
 	const JOIN_TYPE_LEFT = 'leftJoin';
 
-	/** @var IEntityFactory */
+    const ORDER_ASC = 'ASC';
+
+    const ORDER_DESC = 'DESC';
+
+    /** @var IEntityFactory */
 	private $enityFactory;
 
 	/** @var Connection */
@@ -51,6 +56,7 @@ class DomainQuery
 		'from' => null,
 		'join' => array(),
 		'where' => array(),
+		'orderBy' => array(),
 	);
 
 	/** @var HydratorMeta */
@@ -123,26 +129,46 @@ class DomainQuery
 	/**
 	 * @param string $definition
 	 * @param string $alias
-	 * @param string|null $fromAlias
 	 * @return self
 	 */
-	public function join($definition, $alias, $fromAlias = null)
+	public function join($definition, $alias)
 	{
-		$this->joinByType($definition, $alias, self::JOIN_TYPE_INNER, $fromAlias);
+		$this->joinByType($definition, $alias, self::JOIN_TYPE_INNER);
 		return $this;
 	}
 
 	/**
 	 * @param string $definition
 	 * @param string $alias
-	 * @param string|null $fromAlias
 	 * @return self
 	 */
-	public function leftJoin($definition, $alias, $fromAlias = null)
+	public function leftJoin($definition, $alias)
 	{
-		$this->joinByType($definition, $alias, self::JOIN_TYPE_LEFT, $fromAlias);
+		$this->joinByType($definition, $alias, self::JOIN_TYPE_LEFT);
 		return $this;
 	}
+
+	/**
+	 * @param string $property
+	 * @param string $direction
+	 * @return self
+	 * @throws InvalidArgumentException
+	 */
+	public function orderBy($property, $direction = self::ORDER_ASC)
+    {
+        list($alias, $property) = $this->parseDotNotation($property);
+	    $entityReflection = $this->getReflection(
+		    $this->aliases->getEntityClass($alias)
+	    );
+        $property = $entityReflection->getEntityProperty($property);
+
+	    if ($property->hasRelationship()) {
+		    throw new InvalidArgumentException;
+	    }
+        $this->clauses['orderBy'][] = array($alias, $property->getColumn(), $direction);
+
+	    return $this;
+    }
 
 	/**
 	 * @return Fluent
@@ -154,7 +180,8 @@ class DomainQuery
 			throw new InvalidStateException;
 		}
 		$statement = $this->connection->command();
-		foreach (array_keys($this->clauses['select']) as $alias) {
+
+		foreach (array_keys($this->clauses['select']) as $alias) { // SELECT
 			$statement->select(
 				$this->queryHelper->formatSelect(
 					$this->getReflection($this->aliases->getEntityClass($alias)),
@@ -168,8 +195,10 @@ class DomainQuery
 				);
 			}
 		}
-		$statement->from(array($this->clauses['from'][1] => $this->clauses['from'][2]));
-		foreach ($this->clauses['join'] as $join) {
+
+		$statement->from(array($this->clauses['from'][1] => $this->clauses['from'][2])); // FROM
+
+		foreach ($this->clauses['join'] as $join) { // JOIN
 			call_user_func_array(
 				array($statement, $join['type']),
 				array_merge(array('%n AS %n'), $join['joinParameters'])
@@ -178,6 +207,13 @@ class DomainQuery
 				array($statement, 'on'),
 				array_merge(array('%n.%n = %n.%n'), $join['onParameters'])
 			);
+		}
+
+		foreach ($this->clauses['orderBy'] as $orderBy) { // ORDER BY
+			$statement->orderBy('%n.%n', $orderBy[0], $orderBy[1]);
+			if ($orderBy[2] === self::ORDER_DESC) {
+				$statement->desc();
+			}
 		}
 
 		return $statement;
@@ -230,44 +266,21 @@ class DomainQuery
 	 * @param string $definition
 	 * @param string $alias
 	 * @param string $type
-	 * @param string|null $fromAlias
 	 * @throws InvalidArgumentException
 	 */
-	private function joinByType($definition, $alias, $type, $fromAlias)
+	private function joinByType($definition, $alias, $type)
 	{
-		$parsedJoin = $this->parseJoin($definition);
+		list($fromAlias, $viaProperty) = $this->parseDotNotation($definition);
 		$entityReflection = $this->getReflection(
-			$fromEntity = $this->aliases->getEntityClass($parsedJoin[0])
+			$fromEntity = $this->aliases->getEntityClass($fromAlias)
 		);
-		$property = $entityReflection->getEntityProperty($parsedJoin[1]);
+		$property = $entityReflection->getEntityProperty($viaProperty);
 		if (!$property->hasRelationship()) {
 			throw new InvalidArgumentException;
 		}
 		$relationship = $property->getRelationship();
-		if ($fromAlias === null) {
-			$fromAlias = $this->aliases->getAlias($fromEntity);
-		}
-		if ($relationship instanceof HasOne) {
-			$this->clauses['join'][] = array(
-				'type' => $type,
-				'joinParameters' => array(
-					$targetTable = $relationship->getTargetTable(),
-					$alias,
-				),
-				'onParameters' => array(
-					$fromAlias,
-					$relationshipColumn = $relationship->getColumnReferencingTargetTable(),
-					$alias,
-					$primaryKey = $this->mapper->getPrimaryKey($targetTable),
-				),
-			);
-			$this->aliases->addAlias($alias, $property->getType());
 
-			$this->hydratorMeta->addTablePrefix($alias, $targetTable);
-			$this->hydratorMeta->addPrimaryKey($targetTable, $primaryKey);
-			$this->hydratorMeta->addRelationship($alias, "$fromAlias(" . $this->mapper->getTable($fromEntity) . ").$relationshipColumn " . Hydrator::DIRECTION_REFERENCED . " $alias($targetTable).$primaryKey");
-
-		} elseif ($relationship instanceof HasMany) {
+		if ($relationship instanceof HasMany) {
 			$this->clauses['join'][] = array(
 				'type' => $type,
 				'joinParameters' => array(
@@ -314,7 +327,38 @@ class DomainQuery
 
 			$this->indexer++;
 		} else {
-			throw new InvalidArgumentException;
+			$this->clauses['join'][] = array(
+				'type' => $type,
+				'joinParameters' => array(
+					$targetTable = $relationship->getTargetTable(),
+					$alias,
+				),
+				'onParameters' => $relationship instanceof HasOne ?
+					array(
+						$fromAlias,
+						$relationshipColumn = $relationship->getColumnReferencingTargetTable(),
+						$alias,
+						$primaryKey = $this->mapper->getPrimaryKey($targetTable),
+					) :
+					array(
+						$fromAlias,
+						$primaryKey = $this->mapper->getPrimaryKey(
+							$fromTable = $this->mapper->getTable($fromEntity)
+						),
+						$alias,
+						$columnReferencingSourceTable = $relationship->getColumnReferencingSourceTable(),
+					),
+			);
+			$this->aliases->addAlias($alias, $property->getType());
+
+			$this->hydratorMeta->addTablePrefix($alias, $targetTable);
+			if ($relationship instanceof HasOne) {
+				$this->hydratorMeta->addPrimaryKey($targetTable, $primaryKey);
+				$this->hydratorMeta->addRelationship($alias, "$fromAlias(" . $this->mapper->getTable($fromEntity) . ").$relationshipColumn " . Hydrator::DIRECTION_REFERENCED . " $alias($targetTable).$primaryKey");
+			} else {
+				$this->hydratorMeta->addPrimaryKey($targetTable, $targetTablePrimaryKey = $this->mapper->getPrimaryKey($targetTable));
+				$this->hydratorMeta->addRelationship($alias, "$fromAlias($fromTable).$columnReferencingSourceTable " . Hydrator::DIRECTION_REFERENCED . " $fromAlias($fromTable).$primaryKey");
+			}
 		}
 	}
 
@@ -323,7 +367,7 @@ class DomainQuery
 	 * @return array
 	 * @throws InvalidArgumentException
 	 */
-	private function parseJoin($definition)
+	private function parseDotNotation($definition)
 	{
 		$matches = array();
 		if (!preg_match('#^\s*(' . DomainQuery::PATTERN_IDENTIFIER . ')\.(' . DomainQuery::PATTERN_IDENTIFIER . ')\s*$#', $definition, $matches)) {
