@@ -29,12 +29,12 @@ $sql = (string) $connection->select($queryHelper->formatSelect($authorReflection
 		->where('LENGTH(%n) > %i', $queryHelper->formatColumn($bookReflection->getEntityProperty('name'), $bookTable), 13);
 
 $expected =
-		"SELECT [author].[id] AS [author_id], [author].[name] AS [author_name], [author].[web] AS [author_web], " .
-		"[book].[id] AS [book_id], [book].[author_id] AS [book_author_id], [book].[reviewer_id] AS [book_reviewer_id], [book].[name] AS [book_name], " .
-		"[book].[pubdate] AS [book_pubdate], [book].[description] AS [book_description], [book].[website] AS [book_website], [book].[available] AS [book_available] " .
+		"SELECT [author].[id] AS [author__id], [author].[name] AS [author__name], [author].[web] AS [author__web], " .
+		"[book].[id] AS [book__id], [book].[author_id] AS [book__author_id], [book].[reviewer_id] AS [book__reviewer_id], [book].[name] AS [book__name], " .
+		"[book].[pubdate] AS [book__pubdate], [book].[description] AS [book__description], [book].[website] AS [book__website], [book].[available] AS [book__available] " .
 		"FROM [author] " .
 		"JOIN [book] ON [book].[author_id] = [author].[id] " .
-		"WHERE [book_name] != 'The Pragmatic Programmer' AND LENGTH([book_name]) > 13";
+		"WHERE [book__name] != 'The Pragmatic Programmer' AND LENGTH([book__name]) > 13";
 
 Assert::equal($expected, $sql);
 
@@ -46,12 +46,12 @@ $sql = (string) $connection->select($queryHelper->formatSelect($bookReflection, 
 		->join('%n %n', $bookTable, 'book2')->on('%n.%n = %n.%n', 'book2', $bookReflection->getEntityProperty('author')->getColumn(), $authorTable, $authorReflection->getEntityProperty('id')->getColumn());
 
 $expected =
-		"SELECT [book].[id] AS [book_id], [book].[author_id] AS [book_author_id], [book].[reviewer_id] AS [book_reviewer_id], " .
-		"[book].[name] AS [book_name], [book].[pubdate] AS [book_pubdate], [book].[description] AS [book_description], " .
-		"[book].[website] AS [book_website], [book].[available] AS [book_available], [author].[id] AS [author_id], " .
-		"[author].[name] AS [author_name], [author].[web] AS [author_web], [book2].[id] AS [book2_id], [book2].[author_id] AS [book2_author_id], " .
-		"[book2].[reviewer_id] AS [book2_reviewer_id], [book2].[name] AS [book2_name], [book2].[pubdate] AS [book2_pubdate], " .
-		"[book2].[description] AS [book2_description], [book2].[website] AS [book2_website], [book2].[available] AS [book2_available] " .
+		"SELECT [book].[id] AS [book__id], [book].[author_id] AS [book__author_id], [book].[reviewer_id] AS [book__reviewer_id], " .
+		"[book].[name] AS [book__name], [book].[pubdate] AS [book__pubdate], [book].[description] AS [book__description], " .
+		"[book].[website] AS [book__website], [book].[available] AS [book__available], [author].[id] AS [author__id], " .
+		"[author].[name] AS [author__name], [author].[web] AS [author__web], [book2].[id] AS [book2__id], [book2].[author_id] AS [book2__author_id], " .
+		"[book2].[reviewer_id] AS [book2__reviewer_id], [book2].[name] AS [book2__name], [book2].[pubdate] AS [book2__pubdate], " .
+		"[book2].[description] AS [book2__description], [book2].[website] AS [book2__website], [book2].[available] AS [book2__available] " .
 		"FROM [book] " .
 		"JOIN [author] ON [book].[author_id] = [author].[id] " .
 		"JOIN [book] [book2] ON [book2].[author_id] = [author].[id]";
@@ -67,11 +67,11 @@ $sql = (string) $connection->select($queryHelper->formatSelect($authorReflection
 		->where('LENGTH(%n) > %i', $queryHelper->formatColumn($bookReflection->getEntityProperty('name'), $bookTable, $bookPrefix), 13);
 
 $expected =
-		"SELECT [spisovatel].[id] AS [s_id], [spisovatel].[name] AS [s_name], [spisovatel].[web] AS [s_web], " .
-		"[knizka].[id] AS [b_id], [knizka].[author_id] AS [b_author_id], [knizka].[reviewer_id] AS [b_reviewer_id], [knizka].[name] AS [b_name], " .
-		"[knizka].[pubdate] AS [b_pubdate], [knizka].[description] AS [b_description], [knizka].[website] AS [b_website], [knizka].[available] AS [b_available] " .
+		"SELECT [spisovatel].[id] AS [s__id], [spisovatel].[name] AS [s__name], [spisovatel].[web] AS [s__web], " .
+		"[knizka].[id] AS [b__id], [knizka].[author_id] AS [b__author_id], [knizka].[reviewer_id] AS [b__reviewer_id], [knizka].[name] AS [b__name], " .
+		"[knizka].[pubdate] AS [b__pubdate], [knizka].[description] AS [b__description], [knizka].[website] AS [b__website], [knizka].[available] AS [b__available] " .
 		"FROM [author] AS [spisovatel] " .
 		"JOIN [book] [knizka] ON [knizka].[author_id] = [spisovatel].[id] " .
-		"WHERE [b_name] != 'The Pragmatic Programmer' AND LENGTH([b_name]) > 13";
+		"WHERE [b__name] != 'The Pragmatic Programmer' AND LENGTH([b__name]) > 13";
 
 Assert::equal($expected, $sql);

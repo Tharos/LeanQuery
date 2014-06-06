@@ -1,39 +1,39 @@
 <?php
 
-use LeanMapper\Connection;
 use LeanQuery\Hydrator;
+use LeanQuery\HydratorMeta;
 use LeanQuery\QueryHelper;
 use Tester\Assert;
-use Tester\Dumper;
 
 require_once __DIR__ . '/../bootstrap.php';
 
 $queryHelper = new QueryHelper($mapper);
 $hydrator = new Hydrator($connection, $mapper);
 
-$authorPrefix = 'autor';
+$authorReflection = Author::getReflection($mapper);
 $authorTable = 'author';
-$bookPrefix = 'book';
+$authorPrefix = 'autor';
 
-$data = $connection->select($queryHelper->formatSelect(Author::class, $authorTable, $authorPrefix) + $queryHelper->formatSelect(Book::class, null, $bookPrefix))
-		->from($queryHelper->formatFrom(Author::class))
-		->join($queryHelper->formatJoin(Book::class))->on($queryHelper->formatOn(Book::class, 'author'))
-		->where('%sql != %s', $queryHelper->formatColumn(Book::class, 'name', null, $bookPrefix), 'The Pragmatic Programmer')
-		->where('LENGTH(%sql) > %i', $queryHelper->formatColumn(Book::class, 'name', null, $bookPrefix), 13)
+$bookReflection = Book::getReflection($mapper);
+$bookTable = 'book';
+
+$data = $connection->select($queryHelper->formatSelect(Author::getReflection($mapper), $authorTable, $authorPrefix) + $queryHelper->formatSelect(Book::getReflection($mapper), $bookTable))
+		->from('%n AS %n', $authorTable, $authorTable)
+		->join($bookTable)->on('%n.%n = %n.%n', $bookTable, $bookReflection->getEntityProperty('author')->getColumn(), $authorTable, $authorReflection->getEntityProperty('id')->getColumn())
+		->where('%n != %s', $queryHelper->formatColumn($bookReflection->getEntityProperty('name'), $bookTable), 'The Pragmatic Programmer')
+		->where('LENGTH(%n) > %i', $queryHelper->formatColumn($bookReflection->getEntityProperty('name'), $bookTable), 13)
 		->fetchAll();
 
-$tablesByPrefixes = array(
-	'autor' => 'author',
-	'book' => 'book',
-);
-$primaryKeysByTables = array(
-	'author' => 'id',
-	'book' => 'id',
-);
-$relationships = array(
-	'book(book).author_id <=> autor(author).id',
-);
-$results = $hydrator->buildResultsGraph($data, $tablesByPrefixes, $primaryKeysByTables, $relationships);
+$hydratorMeta = new HydratorMeta;
+$hydratorMeta->addTablePrefix('autor', 'author');
+$hydratorMeta->addTablePrefix('book', 'book');
+
+$hydratorMeta->addPrimaryKey('author', 'id');
+$hydratorMeta->addPrimaryKey('book', 'id');
+
+$hydratorMeta->addRelationship('book', 'book(book).author_id <=> autor(author).id');
+
+$results = $hydrator->buildResultsGraph($data, $hydratorMeta, array('book'));
 
 $authors = $results['autor'];
 $output = '';
@@ -54,12 +54,12 @@ foreach ($authors as $author) {
 Assert::count(1, $queries);
 
 $expected =
-		"SELECT [author].[id] AS [autor_id], [author].[name] AS [autor_name], [author].[web] AS [autor_web], " .
-		"[book].[id] AS [book_id], [book].[author_id] AS [book_author_id], [book].[reviewer_id] AS [book_reviewer_id], [book].[name] AS [book_name], " .
-		"[book].[pubdate] AS [book_pubdate], [book].[description] AS [book_description], [book].[website] AS [book_website], [book].[available] AS [book_available] " .
+		"SELECT [author].[id] AS [autor__id], [author].[name] AS [autor__name], [author].[web] AS [autor__web], " .
+		"[book].[id] AS [book__id], [book].[author_id] AS [book__author_id], [book].[reviewer_id] AS [book__reviewer_id], [book].[name] AS [book__name], " .
+		"[book].[pubdate] AS [book__pubdate], [book].[description] AS [book__description], [book].[website] AS [book__website], [book].[available] AS [book__available] " .
 		"FROM [author] AS [author] " .
 		"JOIN [book] ON [book].[author_id] = [author].[id] " .
-		"WHERE [book_name] != 'The Pragmatic Programmer' AND LENGTH([book_name]) > 13";
+		"WHERE [book__name] != 'The Pragmatic Programmer' AND LENGTH([book__name]) > 13";
 
 Assert::equal($expected, $queries[0]);
 
