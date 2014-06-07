@@ -130,7 +130,11 @@ class DomainQuery
 		$table = $this->mapper->getTable($entityClass);
 
 		$this->aliases->addAlias($alias, $entityClass);
-		$this->clauses['from'] = array($entityClass, $table, $alias);
+		$this->clauses['from'] = array(
+			'entityClass' => $entityClass,
+			'table' => $table,
+			'alias' => $alias
+		);
 
 		$this->hydratorMeta->addTablePrefix($alias, $table);
 		$this->hydratorMeta->addPrimaryKey($table, $this->mapper->getPrimaryKey($table));
@@ -214,7 +218,7 @@ class DomainQuery
 			}
 		}
 
-		$statement->from(array($this->clauses['from'][1] => $this->clauses['from'][2])); // FROM
+		$statement->from(array($this->clauses['from']['table'] => $this->clauses['from']['alias'])); // FROM
 
 		foreach ($this->clauses['join'] as $join) { // JOIN
 			call_user_func_array(
@@ -266,8 +270,8 @@ class DomainQuery
 	{
 		if ($this->entities === NULL) {
 			$entities = array();
-			$entityClass = $this->clauses['from'][0];
-			$result = $this->getResult($this->clauses['from'][2]);
+			$entityClass = $this->clauses['from']['entityClass'];
+			$result = $this->getResult($this->clauses['from']['alias']);
 			foreach ($result as $key => $row) {
 				$entities[] = $entity = $this->entityFactory->createEntity($entityClass, new Row($result, $key));
 				$entity->makeAlive($this->entityFactory, $this->connection, $this->mapper);
