@@ -11,7 +11,6 @@ use LeanMapper\Fluent;
 use LeanMapper\IEntityFactory;
 use LeanMapper\IMapper;
 use LeanMapper\Reflection\EntityReflection;
-use LeanMapper\Relationship\BelongsTo;
 use LeanMapper\Relationship\HasMany;
 use LeanMapper\Relationship\HasOne;
 use LeanMapper\Result;
@@ -338,7 +337,10 @@ class DomainQuery
 			);
 			$this->hydratorMeta->addTablePrefix($relTableAlias, $relationshipTable);
 			$this->hydratorMeta->addPrimaryKey($relationshipTable, $relTablePrimaryKey = $this->mapper->getPrimaryKey($relationshipTable));
-			$this->hydratorMeta->addRelationship($relTableAlias, "$relTableAlias($relationshipTable).$columnReferencingSourceTable " . Hydrator::DIRECTION_REFERENCING . " $fromAlias($fromTable).$primaryKey");
+			$this->hydratorMeta->addRelationship(
+				$relTableAlias,
+				new Relationship($relTableAlias, $relationshipTable, $columnReferencingSourceTable, Relationship::DIRECTION_REFERENCING, $fromAlias, $fromTable, $primaryKey)
+			);
 
 			$this->clauses['join'][] = array(
 				'type' => $type,
@@ -357,7 +359,10 @@ class DomainQuery
 
 			$this->hydratorMeta->addTablePrefix($alias, $targetTable);
 			$this->hydratorMeta->addPrimaryKey($targetTable, $primaryKey);
-			$this->hydratorMeta->addRelationship($alias, "$relTableAlias($relationshipTable).$columnReferencingTargetTable " . Hydrator::DIRECTION_REFERENCED . " $alias($targetTable).$primaryKey");
+			$this->hydratorMeta->addRelationship(
+				$alias,
+				new Relationship($relTableAlias, $relationshipTable, $columnReferencingTargetTable, Relationship::DIRECTION_REFERENCED, $alias, $targetTable, $primaryKey)
+			);
 
 			$this->relationshipTables[$alias] = array(
 				$relTableAlias, $relTablePrimaryKey, $relTableAlias . QueryHelper::PREFIX_SEPARATOR . $relTablePrimaryKey,
@@ -394,10 +399,16 @@ class DomainQuery
 			$this->hydratorMeta->addTablePrefix($alias, $targetTable);
 			if ($relationship instanceof HasOne) {
 				$this->hydratorMeta->addPrimaryKey($targetTable, $primaryKey);
-				$this->hydratorMeta->addRelationship($alias, "$fromAlias(" . $this->mapper->getTable($fromEntity) . ").$relationshipColumn " . Hydrator::DIRECTION_REFERENCED . " $alias($targetTable).$primaryKey");
+				$this->hydratorMeta->addRelationship(
+					$alias,
+					new Relationship($fromAlias, $this->mapper->getTable($fromEntity), $relationshipColumn, Relationship::DIRECTION_REFERENCED, $alias, $targetTable, $primaryKey)
+				);
 			} else {
 				$this->hydratorMeta->addPrimaryKey($targetTable, $targetTablePrimaryKey = $this->mapper->getPrimaryKey($targetTable));
-				$this->hydratorMeta->addRelationship($alias, "$fromAlias($fromTable).$columnReferencingSourceTable " . Hydrator::DIRECTION_REFERENCED . " $fromAlias($fromTable).$primaryKey");
+				$this->hydratorMeta->addRelationship(
+					$alias,
+					new Relationship($fromAlias, $fromTable, $columnReferencingSourceTable, Relationship::DIRECTION_REFERENCED, $fromAlias, $fromTable, $primaryKey)
+				);
 			}
 		}
 	}
