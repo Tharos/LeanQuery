@@ -15,6 +15,7 @@ use LeanMapper\Relationship\HasMany;
 use LeanMapper\Relationship\HasOne;
 use LeanMapper\Result;
 use LeanMapper\Row;
+use stdClass;
 
 /**
  * @author Vojtěch Kohout
@@ -50,14 +51,8 @@ class DomainQuery
 	/** @var Aliases */
 	private $aliases;
 
-	/** @var array */
-	private $clauses = array(
-		'select' => array(),
-		'from' => null,
-		'join' => array(),
-		'where' => array(),
-		'orderBy' => array(),
-	);
+	/** @var stdClass */
+	private $clauses;
 
 	/** @var HydratorMeta */
 	private $hydratorMeta;
@@ -95,6 +90,13 @@ class DomainQuery
 
 		$this->aliases = new Aliases;
 		$this->hydratorMeta = new HydratorMeta;
+		$this->clauses = (object) array(
+			'select' => array(),
+			'from' => null,
+			'join' => array(),
+			'where' => array(),
+			'orderBy' => array(),
+		);
 	}
 
 	/**
@@ -109,7 +111,7 @@ class DomainQuery
 		if (!preg_match('#^\s*(' . self::PATTERN_IDENTIFIER . '\s*,\s*)*(' . self::PATTERN_IDENTIFIER . ')\s*$#', $aliases)) {
 			throw new InvalidArgumentException;
 		}
-		$this->clauses['select'] += array_fill_keys(preg_split('#\s*,\s*#', trim($aliases)), true);
+		$this->clauses->select += array_fill_keys(preg_split('#\s*,\s*#', trim($aliases)), true);
 
 		return $this;
 	}
@@ -124,13 +126,13 @@ class DomainQuery
 	{
 		$this->cleanCache();
 
-		if ($this->clauses['from'] !== null) {
+		if ($this->clauses->from !== null) {
 			throw new InvalidMethodCallException;
 		}
 		$table = $this->mapper->getTable($entityClass);
 
 		$this->aliases->addAlias($alias, $entityClass);
-		$this->clauses['from'] = array(
+		$this->clauses->from = array(
 			'entityClass' => $entityClass,
 			'table' => $table,
 			'alias' => $alias
@@ -187,7 +189,7 @@ class DomainQuery
 	    if ($property->hasRelationship()) {
 		    throw new InvalidArgumentException;
 	    }
-        $this->clauses['orderBy'][] = array($alias, $property->getColumn(), $direction);
+        $this->clauses->orderBy[] = array($alias, $property->getColumn(), $direction);
 
 	    return $this;
     }
@@ -198,12 +200,12 @@ class DomainQuery
 	 */
 	public function createFluent()
 	{
-		if ($this->clauses['from'] === null or empty($this->clauses['select'])) {
+		if ($this->clauses->from === null or empty($this->clauses->select)) {
 			throw new InvalidStateException;
 		}
 		$statement = $this->connection->command();
 
-		foreach (array_keys($this->clauses['select']) as $alias) { // SELECT
+		foreach (array_keys($this->clauses->select) as $alias) { // SELECT
 			$statement->select(
 				$this->queryHelper->formatSelect(
 					$this->getReflection($this->aliases->getEntityClass($alias)),
@@ -218,9 +220,9 @@ class DomainQuery
 			}
 		}
 
-		$statement->from(array($this->clauses['from']['table'] => $this->clauses['from']['alias'])); // FROM
+		$statement->from(array($this->clauses->from['table'] => $this->clauses->from['alias'])); // FROM
 
-		foreach ($this->clauses['join'] as $join) { // JOIN
+		foreach ($this->clauses->join as $join) { // JOIN
 			call_user_func_array(
 				array($statement, $join['type']),
 				array_merge(array('%n AS %n'), $join['joinParameters'])
@@ -231,7 +233,7 @@ class DomainQuery
 			);
 		}
 
-		foreach ($this->clauses['orderBy'] as $orderBy) { // ORDER BY
+		foreach ($this->clauses->orderBy as $orderBy) { // ORDER BY
 			$statement->orderBy('%n.%n', $orderBy[0], $orderBy[1]);
 			if ($orderBy[2] === self::ORDER_DESC) {
 				$statement->desc();
@@ -249,7 +251,7 @@ class DomainQuery
 	public function getResult($alias)
 	{
 		if ($this->results === NULL) {
-			$relationshipFilter = array_keys($this->clauses['select']);
+			$relationshipFilter = array_keys($this->clauses->select);
 			foreach ($relationshipFilter as $filteredAlias) {
 				if (array_key_exists($filteredAlias, $this->relationshipTables)) {
 					$relationshipFilter[] = $this->relationshipTables[$filteredAlias][0];
@@ -270,8 +272,8 @@ class DomainQuery
 	{
 		if ($this->entities === NULL) {
 			$entities = array();
-			$entityClass = $this->clauses['from']['entityClass'];
-			$result = $this->getResult($this->clauses['from']['alias']);
+			$entityClass = $this->clauses->from['entityClass'];
+			$result = $this->getResult($this->clauses->from['alias']);
 			foreach ($result as $key => $row) {
 				$entities[] = $entity = $this->entityFactory->createEntity($entityClass, new Row($result, $key));
 				$entity->makeAlive($this->entityFactory, $this->connection, $this->mapper);
@@ -324,7 +326,7 @@ class DomainQuery
 		$relationship = $property->getRelationship();
 
 		if ($relationship instanceof HasMany) {
-			$this->clauses['join'][] = array(
+			$this->clauses->join[] = array(
 				'type' => $type,
 				'joinParameters' => array(
 					$relationshipTable = $relationship->getRelationshipTable(),
@@ -346,7 +348,7 @@ class DomainQuery
 				new Relationship($relTableAlias, $relationshipTable, $columnReferencingSourceTable, Relationship::DIRECTION_REFERENCING, $fromAlias, $fromTable, $primaryKey)
 			);
 
-			$this->clauses['join'][] = array(
+			$this->clauses->join[] = array(
 				'type' => $type,
 				'joinParameters' => array(
 					$targetTable = $relationship->getTargetTable(),
@@ -376,7 +378,7 @@ class DomainQuery
 
 			$this->indexer++;
 		} else {
-			$this->clauses['join'][] = array(
+			$this->clauses->join[] = array(
 				'type' => $type,
 				'joinParameters' => array(
 					$targetTable = $relationship->getTargetTable(),
