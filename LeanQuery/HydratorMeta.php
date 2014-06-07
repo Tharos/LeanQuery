@@ -91,7 +91,7 @@ class HydratorMeta
 
 	/**
 	 * @param string $alias
-	 * @param string $relationship
+	 * @param Relationship|string $relationship
 	 * @throws InvalidArgumentException
 	 */
 	public function addRelationship($alias, $relationship)
@@ -99,7 +99,7 @@ class HydratorMeta
 		if (array_key_exists($alias, $this->relationships)) {
 			throw new InvalidArgumentException;
 		}
-		$this->relationships[$alias] = $relationship;
+		$this->relationships[$alias] = $relationship instanceof Relationship ? $relationship : Relationship::createFromString($relationship);
 	}
 
 }

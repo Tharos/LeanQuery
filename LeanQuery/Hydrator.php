@@ -14,14 +14,6 @@ use LeanMapper\Result;
 class Hydrator
 {
 
-	const DIRECTION_REFERENCED = '=>';
-
-	const DIRECTION_REFERENCING = '<=';
-
-	const DIRECTION_BOTH = '<=>';
-
-	const RE_IDENTIFIER = '[a-zA-Z0-9_-]+'; // TODO: move to separate class in Lean Mapper
-
 	/** @var Connection */
 	private $connection;
 
@@ -87,58 +79,24 @@ class Hydrator
 
 	/**
 	 * @param array $results
-	 * @param array $relationships
+	 * @param Relationship[] $relationships
 	 * @return array
 	 * @throws InvalidArgumentException
 	 */
 	private function linkResults(array $results, array $relationships)
 	{
-		foreach ($this->parseRelationships($relationships) as $relationship) {
-			if (!isset($results[$relationship['sourcePrefix']]) or !isset($results[$relationship['targetPrefix']])) {
+		foreach ($relationships as $relationship) {
+			if (!isset($results[$relationship->getSourcePrefix()]) or !isset($results[$relationship->getTargetPrefix()])) {
 				throw new InvalidArgumentException('Missing relationship identified by given prefix. Deal with it :-P.');
 			}
-			if ($relationship['direction'] === self::DIRECTION_REFERENCED or $relationship['direction'] === self::DIRECTION_BOTH) {
-				$results[$relationship['sourcePrefix']]->setReferencedResult($results[$relationship['targetPrefix']], $relationship['targetTable'], $relationship['relationshipColumn']);
+			if ($relationship->getDirection() === Relationship::DIRECTION_REFERENCED or $relationship->getDirection() === Relationship::DIRECTION_BOTH) {
+				$results[$relationship->getSourcePrefix()]->setReferencedResult($results[$relationship->getTargetPrefix()], $relationship->getTargetTable(), $relationship->getRelationshipColumn());
 			}
-			if ($relationship['direction'] === self::DIRECTION_REFERENCING or $relationship['direction'] === self::DIRECTION_BOTH) {
-				$results[$relationship['targetPrefix']]->setReferencingResult($results[$relationship['sourcePrefix']], $relationship['sourceTable'], $relationship['relationshipColumn']);
+			if ($relationship->getDirection() === Relationship::DIRECTION_REFERENCING or $relationship->getDirection() === Relationship::DIRECTION_BOTH) {
+				$results[$relationship->getTargetPrefix()]->setReferencingResult($results[$relationship->getSourcePrefix()], $relationship->getSourceTable(), $relationship->getRelationshipColumn());
 			}
 		}
 		return $results;
-	}
-
-	/**
-	 * @param array $relationships
-	 * @return array
-	 * @throws InvalidArgumentException
-	 */
-	private function parseRelationships(array $relationships)
-	{
-		$result = array();
-		foreach ($relationships as $definition) {
-			$matches = array();
-			// brackets hell matching <sourcePrefix>[(<sourceTable)].<relationshipColumn><direction><targetPrefix>[(<targetTable)].<primaryKeyColumn>
-			if (!preg_match('#^\s*(' . self::RE_IDENTIFIER . ')(?:\((' . self::RE_IDENTIFIER . ')\))?\.(' . self::RE_IDENTIFIER . ')\s*(' . self::DIRECTION_REFERENCED . '|' . self::DIRECTION_REFERENCING . '|' . self::DIRECTION_BOTH . ')\s*(' . self::RE_IDENTIFIER . ')(?:\((' . self::RE_IDENTIFIER . ')\))?\.(' . self::RE_IDENTIFIER . ')\s*$#', $definition, $matches)) {
-				throw new InvalidArgumentException("Invalid relationships definition given: $definition");
-			}
-			if ($matches[4] === self::DIRECTION_REFERENCED) {
-				$direction = self::DIRECTION_REFERENCED;
-			} elseif ($matches[4] === self::DIRECTION_REFERENCING) {
-				$direction = self::DIRECTION_REFERENCING;
-			} else {
-				$direction = self::DIRECTION_BOTH;
-			}
-			$result[] = array(
-				'sourcePrefix' => $matches[1],
-				'sourceTable' => $matches[2] !== '' ? $matches[2] : $matches[1],
-				'relationshipColumn' => $matches[3],
-				'targetPrefix' => $matches[5],
-				'targetTable' => $matches[6] !== '' ? $matches[6] : $matches[5],
-				'primaryKeyColumn' => $matches[7],
-				'direction' => $direction,
-			);
-		}
-		return $result;
 	}
 
 }
