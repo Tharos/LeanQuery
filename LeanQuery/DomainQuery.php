@@ -157,6 +157,14 @@ class DomainQuery
 		return $this;
 	}
 
+	public function where($args)
+	{
+		$this->cleanCache();
+		$this->domainQueryHelper->addWhere(func_get_args());
+
+		return $this;
+	}
+
 	/**
 	 * @param string $property
 	 * @param string $direction
@@ -208,6 +216,10 @@ class DomainQuery
 				array($statement, 'on'),
 				array_merge(array('%n.%n = %n.%n'), $join['onParameters'])
 			);
+		}
+
+		if (!empty($this->clauses->where)) { // WHERE
+			call_user_func_array(array($statement, 'where'), $this->clauses->where);
 		}
 
 		foreach ($this->clauses->orderBy as $orderBy) { // ORDER BY
