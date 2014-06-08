@@ -243,3 +243,44 @@ Introduction to Algorithms
 ';
 
 Assert::equal($expected, $output);
+
+////////////////////
+
+$queries = array();
+
+$domainQuery = $domainQueryFactory->createQuery();
+
+$domainQuery->select('b, a')
+	->from('Book', 'b')
+	->join('b.author', 'a')
+	->where('a.name IN %in AND b.available = %b AND %sql', array('Martin Fowler', 'Thomas H. Cormen'), true, '1 = 1', 'AND a.name != ? AND b.name != "b.name"', 'a.name');
+
+$books = $domainQuery->getEntities();
+
+$output = '';
+
+foreach ($books as $book) {
+	$output .= "$book->name\r\n";
+	$output .= "\tAuthor: {$book->author->name}\r\n";
+}
+
+Assert::count(1, $queries);
+
+$expected =
+	"SELECT [b].[id] AS [b__id], [b].[author_id] AS [b__author_id], [b].[reviewer_id] AS [b__reviewer_id], " .
+	"[b].[name] AS [b__name], [b].[pubdate] AS [b__pubdate], [b].[description] AS [b__description], [b].[website] AS [b__website], " .
+	"[b].[available] AS [b__available] , [a].[id] AS [a__id], [a].[name] AS [a__name], [a].[web] AS [a__web] " .
+	"FROM [book] AS [b] " .
+	"JOIN [author] AS [a] ON [b].[author_id] = [a].[id] " .
+	"WHERE [a].[name] IN ('Martin Fowler', 'Thomas H. Cormen') AND [b].[available] = 1 AND 1 = 1 AND [a].[name] != 'a.name' AND [b].[name] != 'b.name'";
+
+Assert::equal($expected, $queries[0]);
+
+$expected =
+	'Refactoring: Improving the Design of Existing Code
+	Author: Martin Fowler
+Introduction to Algorithms
+	Author: Thomas H. Cormen
+';
+
+Assert::equal($expected, $output);

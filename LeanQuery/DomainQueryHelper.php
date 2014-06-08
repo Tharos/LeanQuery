@@ -37,6 +37,9 @@ class DomainQueryHelper
 	/** @var ArrayObject */
 	private $relationshipTables;
 
+	/** @var int */
+	private $awaitedParameters;
+
 
 	/**
 	 * @param IMapper $mapper
@@ -201,6 +204,27 @@ class DomainQueryHelper
 		}
 	}
 
+	public function addWhere(array $arguments)
+	{
+		$pattern = '/
+			(\'(?:\'\'|[^\'])*\'|"(?:""|[^"])*")| # string
+			%([a-zA-Z~][a-zA-Z0-9~]{0,5})| # modifier
+			(\?) | # placeholder
+			(' . DomainQuery::PATTERN_IDENTIFIER . ')\.(' . DomainQuery::PATTERN_IDENTIFIER . ') # alias.property
+		/xs';
+
+		$this->awaitedParameters = 0;
+		foreach ($arguments as $argument) {
+			if ($this->awaitedParameters > 0) {
+				$this->clauses->where[] = $argument;
+				$this->awaitedParameters--;
+			} else {
+				$this->clauses->where[] = preg_replace_callback($pattern, array($this, 'translateMatches'), $argument);
+			}
+		}
+		$this->awaitedParameters = null;
+	}
+
 	/**
 	 * @param string $property
 	 * @param string $direction
@@ -219,8 +243,8 @@ class DomainQueryHelper
 		}
 		$this->clauses->orderBy[] = array($alias, $property->getColumn(), $direction);
 	}
-	
 	////////////////////
+
 	////////////////////
 
 	/**
@@ -235,6 +259,40 @@ class DomainQueryHelper
 			throw new InvalidArgumentException;
 		}
 		return array($matches[1], $matches[2]);
+	}
+
+	/**
+	 * @param array $matches
+	 * @return string
+	 * @throws InvalidArgumentException
+	 */
+	private function translateMatches(array $matches)
+	{
+		if (!empty($matches[1])) { // quoted string
+			return $matches[0];
+		}
+		if (!empty($matches[2]) or !empty($matches[3])) { // modifier or placeholder
+			if ($matches[2] !== 'else' and $matches[2] !== 'end') {
+				$this->awaitedParameters++;
+			}
+			return $matches[0];
+		}
+
+		$alias = $matches[4];
+		$property = $matches[5];
+
+		$entityClass = $this->aliases->getEntityClass($alias);
+		$property = $this->getReflection($entityClass)->getEntityProperty($property);
+		if ($property === null) {
+			throw new InvalidArgumentException;
+		}
+
+		$column = $property->getColumn();
+		if ($column === null) {
+			throw new InvalidArgumentException;
+		}
+
+		return "[$alias.$column]";
 	}
 
 }
