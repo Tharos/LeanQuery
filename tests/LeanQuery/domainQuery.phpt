@@ -277,7 +277,7 @@ $expected =
 Assert::equal($expected, $queries[0]);
 
 $expected =
-	'Refactoring: Improving the Design of Existing Code
+'Refactoring: Improving the Design of Existing Code
 	Author: Martin Fowler
 Introduction to Algorithms
 	Author: Thomas H. Cormen
