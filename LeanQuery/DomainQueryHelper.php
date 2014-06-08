@@ -204,6 +204,9 @@ class DomainQueryHelper
 		}
 	}
 
+	/**
+	 * @param array $arguments
+	 */
 	public function addWhere(array $arguments)
 	{
 		$pattern = '/

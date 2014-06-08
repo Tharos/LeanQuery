@@ -157,6 +157,10 @@ class DomainQuery
 		return $this;
 	}
 
+	/**
+	 * @param $args
+	 * @return $this
+	 */
 	public function where($args)
 	{
 		$this->cleanCache();
