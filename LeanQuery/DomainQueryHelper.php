@@ -246,8 +246,8 @@ class DomainQueryHelper
 		}
 		$this->clauses->orderBy[] = array($alias, $property->getColumn(), $direction);
 	}
-	////////////////////
 
+	////////////////////
 	////////////////////
 
 	/**
