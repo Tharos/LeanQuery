@@ -41,6 +41,7 @@ class Hydrator
 	{
 		$results = array_fill_keys(array_keys($hydratorMeta->getTablesByPrefixes()), array());
 
+		$index = array();
 		foreach ($data as $row) {
 			$currentPrimaryKeys = array();
 			foreach ($hydratorMeta->getTablesByPrefixes() as $prefix => $table) {
@@ -50,7 +51,10 @@ class Hydrator
 				}
 			}
 			foreach ($row as $field => $value) {
-				list($prefix, $field) = explode(QueryHelper::PREFIX_SEPARATOR, $field, 2);
+				if (!isset($index[$field])) {
+					$index[$field] = explode(QueryHelper::PREFIX_SEPARATOR, $field, 2);
+				}
+				list($prefix, $field) = $index[$field];
 				if (
 					!isset($results[$prefix]) or
 					!isset($currentPrimaryKeys[$prefix]) or
@@ -59,7 +63,7 @@ class Hydrator
 					continue;
 				}
 				if (!isset($results[$prefix][$currentPrimaryKeys[$prefix]])) {
-					$results[$prefix][$currentPrimaryKeys[$prefix]] = new DibiRow(array());
+					$results[$prefix][$currentPrimaryKeys[$prefix]] = array();
 				}
 				$results[$prefix][$currentPrimaryKeys[$prefix]][$field] = $value;
 			}

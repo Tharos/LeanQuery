@@ -250,7 +250,11 @@ class DomainQuery
 					$relationshipFilter[] = $this->relationshipTables[$filteredAlias][0];
 				}
 			}
-			$this->results = $this->hydrator->buildResultsGraph($this->createFluent()->fetchAll(), $this->hydratorMeta, $relationshipFilter);
+			$this->results = $this->hydrator->buildResultsGraph(
+				$this->createFluent()->execute()->setRowClass(null)->fetchAll(),
+				$this->hydratorMeta,
+				$relationshipFilter
+			);
 		}
 		if (!array_key_exists($alias, $this->results)) {
 			throw new InvalidArgumentException;
