@@ -129,8 +129,8 @@ class DomainQueryHelper
 			$this->hydratorMeta->addTablePrefix($relTableAlias, $relationshipTable);
 			$this->hydratorMeta->addPrimaryKey($relationshipTable, $relTablePrimaryKey = $this->mapper->getPrimaryKey($relationshipTable));
 			$this->hydratorMeta->addRelationship(
-				$relTableAlias,
-				new Relationship($relTableAlias, $relationshipTable, $columnReferencingSourceTable, Relationship::DIRECTION_REFERENCING, $fromAlias, $fromTable, $primaryKey)
+				$alias,
+				new Relationship($fromAlias, $fromTable, $columnReferencingSourceTable, Relationship::DIRECTION_REFERENCING, $relTableAlias, $relationshipTable, $primaryKey)
 			);
 
 			$this->clauses->join[] = array(
@@ -151,7 +151,7 @@ class DomainQueryHelper
 			$this->hydratorMeta->addTablePrefix($alias, $targetTable);
 			$this->hydratorMeta->addPrimaryKey($targetTable, $primaryKey);
 			$this->hydratorMeta->addRelationship(
-				$alias,
+				$relTableAlias,
 				new Relationship($relTableAlias, $relationshipTable, $columnReferencingTargetTable, Relationship::DIRECTION_REFERENCED, $alias, $targetTable, $primaryKey)
 			);
 
@@ -197,8 +197,8 @@ class DomainQueryHelper
 			} else {
 				$this->hydratorMeta->addPrimaryKey($targetTable, $targetTablePrimaryKey = $this->mapper->getPrimaryKey($targetTable));
 				$this->hydratorMeta->addRelationship(
-					$alias,
-					new Relationship($fromAlias, $fromTable, $columnReferencingSourceTable, Relationship::DIRECTION_REFERENCED, $fromAlias, $fromTable, $primaryKey)
+					$fromAlias,
+					new Relationship($fromAlias, $fromTable, $columnReferencingSourceTable, Relationship::DIRECTION_REFERENCING, $alias, $targetTable, $primaryKey)
 				);
 			}
 		}

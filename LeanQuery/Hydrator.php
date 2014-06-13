@@ -93,10 +93,14 @@ class Hydrator
 			if (!isset($results[$relationship->getSourcePrefix()]) or !isset($results[$relationship->getTargetPrefix()])) {
 				throw new InvalidArgumentException('Missing relationship identified by given prefix. Deal with it :-P.');
 			}
-			if ($relationship->getDirection() === Relationship::DIRECTION_REFERENCED or $relationship->getDirection() === Relationship::DIRECTION_BOTH) {
+			if ($relationship->getDirection() === Relationship::DIRECTION_REFERENCED) {
 				$results[$relationship->getSourcePrefix()]->setReferencedResult($results[$relationship->getTargetPrefix()], $relationship->getTargetTable(), $relationship->getRelationshipColumn());
 			}
-			if ($relationship->getDirection() === Relationship::DIRECTION_REFERENCING or $relationship->getDirection() === Relationship::DIRECTION_BOTH) {
+			if ($relationship->getDirection() === Relationship::DIRECTION_REFERENCING) {
+				$results[$relationship->getSourcePrefix()]->setReferencingResult($results[$relationship->getTargetPrefix()], $relationship->getTargetTable(), $relationship->getRelationshipColumn());
+			}
+			if ($relationship->getDirection() === Relationship::DIRECTION_BOTH) {
+				$results[$relationship->getSourcePrefix()]->setReferencedResult($results[$relationship->getTargetPrefix()], $relationship->getTargetTable(), $relationship->getRelationshipColumn());
 				$results[$relationship->getTargetPrefix()]->setReferencingResult($results[$relationship->getSourcePrefix()], $relationship->getSourceTable(), $relationship->getRelationshipColumn());
 			}
 		}
