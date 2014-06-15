@@ -280,6 +280,15 @@ class DomainQuery
 		return $this->entities;
 	}
 
+	/**
+	 * @return Entity|null
+	 */
+	public function getEntity()
+	{
+		$entities = $this->getEntities();
+		return ($entity = reset($entities)) !== false ? $entity : null;
+	}
+
 	////////////////////
 	////////////////////
 
